@@ -1,0 +1,13 @@
+{
+  "name": "@factory-twin/shared",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Types, hall layout, status rules and the sensor simulator shared by the web app and the server.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  }
+}

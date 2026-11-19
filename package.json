@@ -1,0 +1,36 @@
+{
+  "name": "factory-twin",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A 3D digital-twin dashboard of a small production hall, running in the browser.",
+  "license": "MIT",
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "npm run dev --workspace @factory-twin/sim-server & npm run dev --workspace @factory-twin/web",
+    "dev:web": "npm run dev --workspace @factory-twin/web",
+    "dev:server": "npm run dev --workspace @factory-twin/sim-server",
+    "build": "npm run build --workspace @factory-twin/web",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "npm run test:e2e --workspace @factory-twin/web"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^22.20.5",
+    "eslint": "^10.15.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^16.4.0",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.73.0",
+    "vitest": "^5.1.1"
+  }
+}
