@@ -1,10 +1,13 @@
 # Factory Twin
 
+[![Live demo](https://img.shields.io/badge/demo-live-0ca30c?style=for-the-badge)](https://factory-twin-hazel.vercel.app/)
+[![CI](https://github.com/michael-panamarou/factory-twin/actions/workflows/ci.yml/badge.svg)](https://github.com/michael-panamarou/factory-twin/actions/workflows/ci.yml)
+
 A 3D digital-twin dashboard of a small production hall that runs in the browser.
 Simulated live sensor data colours every machine by status (running, warning or error),
 and clicking a machine opens a side panel with live charts and alerts.
 
-![Overview: the hall with machines coloured by status](docs/screenshot-overview.png)
+[![Overview: the hall with machines coloured by status](docs/screenshot-overview.png)](https://factory-twin-hazel.vercel.app/)
 
 ![Details panel for a machine in error](docs/screenshot-details.png)
 
