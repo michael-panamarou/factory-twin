@@ -165,6 +165,8 @@ export function Machine({ spec }: { spec: MachineSpec }) {
   const handlers = {
     onClick: (e: ThreeEvent<MouseEvent>) => {
       e.stopPropagation();
+      // Ending an orbit drag over a machine is not a click on it.
+      if (e.delta > 6) return;
       select(spec.id);
     },
     onPointerOver: (e: ThreeEvent<PointerEvent>) => {

@@ -15,6 +15,7 @@ and clicking a machine opens a side panel with live charts and alerts.
 
 - **3D hall** built from free CC0 glTF models (Kenney Factory Kit): a hopper, two CNC mills, a hydraulic press, a conveyor with moving parts, two robot arms and a quality scanner.
 - **Orbit camera**: drag to orbit, scroll or pinch to zoom; it stays above the floor.
+- **Camera fly-to**: clicking a machine, in 3D or in the machine list, flies the camera to it and keeps it in view beside the details panel (or above it on phones). Escape or a click on empty space flies back to the overview, and dragging to orbit never selects or deselects by accident.
 - **Live status colours**: machines in warning turn amber and pulse slowly, machines in error turn red and pulse fast, and running machines keep their own colours with a green floor frame. Each status also has its own shape (● ▲ ■), so it never depends on colour alone.
 - **Details panel**: temperature, throughput and vibration with their limits, plus temperature and throughput charts for the last 5 or 15 minutes, a table of the latest readings and the machine's alerts.
 - **Animation driven by the data**: robot arms and the conveyor move at a speed set by throughput and stop when a machine faults.
