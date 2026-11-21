@@ -49,3 +49,7 @@ export interface Alert {
   severity: AlertSeverity;
   message: string;
 }
+
+/** Incidents the simulator can be told to start, for demos and tests. */
+export const INCIDENTS = ['overheating', 'bearing', 'jam', 'fault'] as const;
+export type Incident = (typeof INCIDENTS)[number];

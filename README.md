@@ -20,6 +20,7 @@ and clicking a machine opens a side panel with live charts and alerts.
 - **Details panel**: temperature, throughput and vibration with their limits, plus temperature and throughput charts for the last 5 or 15 minutes, a table of the latest readings and the machine's alerts.
 - **Animation driven by the data**: robot arms and the conveyor move at a speed set by throughput and stop when a machine faults.
 - **Two data sources**: a Node.js WebSocket server, or the same simulator running in the browser. The static demo therefore works without a backend, and the app falls back to the browser simulator when the server can't be reached.
+- **Trigger incident button**: starts a fault or a jam on a random running machine and flies the camera to it, so visitors see a machine go amber or red straight away. It works with the server and with the browser simulator.
 - A machine list beside the scene for keyboard and screen-reader users, and a bottom-sheet layout on phones.
 
 ## Quick start
@@ -41,6 +42,7 @@ Open http://localhost:5173. Other options:
 | `npm test` | Unit and integration tests (Vitest, all workspaces) |
 | `npm run test:e2e` | Playwright tests (builds the app and starts both servers) |
 | `npm run typecheck` / `npm run lint` | TypeScript and ESLint |
+| `npm run dev` | Both at once, on Windows, macOS and Linux 
 
 URL parameters: `?source=local` forces the browser simulator, and `?ws=wss://host/ws` points one session at another server.
 
@@ -67,6 +69,7 @@ flowchart LR
 **Status.** `evaluateStatus()` in `packages/shared/src/status.ts` derives the status from temperature, vibration and throughput against each machine's limits, with hysteresis so a value sitting on a limit doesn't flap between two statuses. The server, the browser fallback and the tests all use this one function.
 
 **Protocol.** On connect the server sends `hello` (machines, the last 15 min of readings, recent alerts), then a `tick` every second with one reading per machine and any new alerts. Every message is validated by `parseServerMessage()` before it reaches the store.
+The only message a browser sends is `inject` (from the "Trigger incident" button); the server validates it with `parseClientMessage()` and accepts at most one per client per second.
 
 **Rendering.** Status colours change materials inside `useFrame` (no React re-render). Each model is cloned per machine so its tint is independent; geometry is shared. The whole scene is about 10k triangles and 560 kB of models.
 
@@ -79,6 +82,7 @@ flowchart LR
 | server | `SEED` | current time | Seed for reproducible runs |
 | server | `INCIDENT_RATE` | `1` | How often incidents start (0 = never) |
 | server | `ALLOWED_ORIGINS` | empty (all allowed) | Comma-separated list of allowed browser origins |
+| server | `ALLOW_INJECT` | `true` | Set to `false` to ignore the "Trigger incident" button |
 
 ## Deploying the live demo
 

@@ -1,4 +1,4 @@
-import type { Alert, MachineSpec, Reading } from './types.ts';
+import { INCIDENTS, type Alert, type Incident, type MachineSpec, type Reading } from './types.ts';
 
 export const PROTOCOL_VERSION = 1;
 
@@ -78,4 +78,29 @@ export function parseServerMessage(raw: string): ServerMessage | null {
   }
 
   return null;
+}
+
+
+/** Sent by a client to start an incident on a machine (the demo's "Trigger incident" button). */
+export interface InjectMessage {
+  type: 'inject';
+  machineId: string;
+  incident: Incident;
+}
+
+export type ClientMessage = InjectMessage;
+
+/** Parses and validates a message from a browser. Returns null for anything malformed. */
+export function parseClientMessage(raw: string): ClientMessage | null {
+  if (raw.length > 1024) return null;
+  let data: unknown;
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  if (!isObject(data) || data.type !== 'inject') return null;
+  if (typeof data.machineId !== 'string' || data.machineId.length > 64) return null;
+  if (!(INCIDENTS as readonly unknown[]).includes(data.incident)) return null;
+  return { type: 'inject', machineId: data.machineId, incident: data.incident as Incident };
 }

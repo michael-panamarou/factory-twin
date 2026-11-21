@@ -64,3 +64,47 @@ describe('sim-server', () => {
     expect(refused).toBe(true);
   });
 });
+
+
+describe('incident injection', () => {
+  /** Opens a socket, waits for hello, and records the PRS-01 status of every tick. */
+  async function connect(url: string) {
+    const socket = new WebSocket(url);
+    const statuses: string[] = [];
+    await new Promise<void>((resolve, reject) => {
+      socket.on('message', (data) => {
+        const msg = parseServerMessage(data.toString());
+        if (msg?.type === 'hello') resolve();
+        if (msg?.type === 'tick') statuses.push(msg.readings.find((r) => r.machineId === 'PRS-01')!.status);
+      });
+      socket.on('error', reject);
+    });
+    return { socket, statuses };
+  }
+
+  const waitFor = async (check: () => boolean, ms = 3000) => {
+    const end = Date.now() + ms;
+    while (!check()) {
+      if (Date.now() > end) throw new Error('timed out');
+      await new Promise((r) => setTimeout(r, 20));
+    }
+  };
+
+  it('starts an incident a client asks for', async () => {
+    server = await startSimServer({ port: 0, host: '127.0.0.1', seed: 3, tickMs: 50, incidentRate: 0, backfillSeconds: 5 });
+    const { socket, statuses } = await connect(server.url);
+    socket.send(JSON.stringify({ type: 'inject', machineId: 'PRS-01', incident: 'fault' }));
+    await waitFor(() => statuses.includes('error'));
+    socket.close();
+  });
+
+  it('ignores injection when it is switched off, and junk messages always', async () => {
+    server = await startSimServer({ port: 0, host: '127.0.0.1', seed: 3, tickMs: 50, incidentRate: 0, backfillSeconds: 5, allowInject: false });
+    const { socket, statuses } = await connect(server.url);
+    socket.send('garbage');
+    socket.send(JSON.stringify({ type: 'inject', machineId: 'PRS-01', incident: 'fault' }));
+    await waitFor(() => statuses.length >= 15);
+    expect(statuses.every((s) => s === 'running')).toBe(true);
+    socket.close();
+  });
+});

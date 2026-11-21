@@ -11,6 +11,7 @@ const server = await startSimServer({
   port: numberFrom(env.PORT) ?? 8787,
   seed: numberFrom(env.SEED),
   incidentRate: numberFrom(env.INCIDENT_RATE),
+  allowInject: env.ALLOW_INJECT !== 'false',
   allowedOrigins: (env.ALLOWED_ORIGINS ?? '')
     .split(',')
     .map((s) => s.trim())

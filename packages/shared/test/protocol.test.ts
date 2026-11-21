@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FactorySimulator, MACHINES, PROTOCOL_VERSION, parseServerMessage } from '../src/index.ts';
+import { FactorySimulator, MACHINES, PROTOCOL_VERSION, parseClientMessage, parseServerMessage } from '../src/index.ts';
 
 describe('parseServerMessage', () => {
   it('round-trips a tick', () => {
@@ -29,5 +29,27 @@ describe('parseServerMessage', () => {
     ['a tick without readings', JSON.stringify({ type: 'tick', ts: 1, alerts: [] })],
   ])('rejects %s', (_label, raw) => {
     expect(parseServerMessage(raw)).toBeNull();
+  });
+});
+
+describe('parseClientMessage', () => {
+  it('accepts an inject message', () => {
+    const msg = { type: 'inject', machineId: 'CNC-01', incident: 'fault' };
+    expect(parseClientMessage(JSON.stringify(msg))).toEqual(msg);
+  });
+
+  it('drops extra fields', () => {
+    const raw = JSON.stringify({ type: 'inject', machineId: 'CNC-01', incident: 'jam', evil: true });
+    expect(parseClientMessage(raw)).toEqual({ type: 'inject', machineId: 'CNC-01', incident: 'jam' });
+  });
+
+  it.each([
+    ['not JSON', 'nope'],
+    ['an unknown type', JSON.stringify({ type: 'reset' })],
+    ['an unknown incident', JSON.stringify({ type: 'inject', machineId: 'CNC-01', incident: 'explode' })],
+    ['a missing machine', JSON.stringify({ type: 'inject', incident: 'fault' })],
+    ['an oversized payload', JSON.stringify({ type: 'inject', machineId: 'x'.repeat(2000), incident: 'fault' })],
+  ])('rejects %s', (_label, raw) => {
+    expect(parseClientMessage(raw)).toBeNull();
   });
 });

@@ -20,8 +20,13 @@ function telemetryConfig() {
 
 export function App() {
   useEffect(() => {
-    const { applyHello, applyTick, setConnection } = useTwinStore.getState();
-    return startTelemetry({ applyHello, applyTick, setConnection }, telemetryConfig());
+    const { applyHello, applyTick, setConnection, setInjector } = useTwinStore.getState();
+    const telemetry = startTelemetry({ applyHello, applyTick, setConnection }, telemetryConfig());
+    setInjector(telemetry.inject);
+    return () => {
+      setInjector(null);
+      telemetry.stop();
+    };
   }, []);
 
   useEffect(() => {
@@ -38,18 +43,18 @@ export function App() {
   }, []);
 
   return (
-    <div className="app">
-      <TopBar />
-      <main className="stage">
-        <FactoryScene />
-        <MachineRoster />
-        <Suspense fallback={null}>
-          <DetailsPanel />
-        </Suspense>
-        <p className="hint" aria-hidden="true">
-          Drag to orbit · scroll to zoom · click a machine for details
-        </p>
-      </main>
-    </div>
+      <div className="app">
+        <TopBar />
+        <main className="stage">
+          <FactoryScene />
+          <MachineRoster />
+          <Suspense fallback={null}>
+            <DetailsPanel />
+          </Suspense>
+          <p className="hint" aria-hidden="true">
+            Drag to orbit · scroll to zoom · click a machine for details
+          </p>
+        </main>
+      </div>
   );
 }

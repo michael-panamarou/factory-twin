@@ -129,6 +129,23 @@ test.describe('Factory Twin dashboard', () => {
     await expect(panel).toHaveAttribute('aria-hidden', 'true');
   });
 
+  for (const source of ['live', 'local'] as const) {
+    test(`Trigger incident puts a machine into warning or error and flies to it (${source})`, async ({ page }) => {
+      await page.goto(source === 'local' ? '/?source=local' : '/');
+      await expect(page.getByTestId('connection')).toHaveText(source === 'local' ? 'Simulated in browser' : 'Live from server');
+      await waitForScene(page);
+      const home = await cameraState(page);
+
+      await page.getByRole('button', { name: 'Trigger incident' }).click();
+
+      const panel = page.getByTestId('details-panel');
+      await expect(panel).toHaveAttribute('aria-hidden', 'false');
+      await expect(page.getByTestId('panel-status').getByText(/^(Warning|Error)$/)).toBeVisible({ timeout: 10_000 });
+      await waitForCameraToSettle(page);
+      expect(distance((await cameraState(page)).position, home.position)).toBeGreaterThan(2);
+    });
+  }
+
   test('falls back to the in-browser simulator', async ({ page }) => {
     await page.goto('/?source=local');
     await expect(page.getByTestId('connection')).toHaveText('Simulated in browser');

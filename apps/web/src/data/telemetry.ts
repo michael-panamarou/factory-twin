@@ -5,6 +5,8 @@ import {
   TICK_MS,
   parseServerMessage,
   type HelloMessage,
+  type Incident,
+  type InjectMessage,
   type Reading,
   type TickMessage,
 } from '@factory-twin/shared';
@@ -30,14 +32,24 @@ export interface TelemetryOptions {
   now?: () => number;
 }
 
+/** A running data feed. */
+export interface Telemetry {
+  stop(): void;
+  /**
+   * Starts an incident on a machine, in the browser simulator or on the server.
+   * Returns false when there is nothing to send it to yet (still connecting).
+   */
+  inject(machineId: string, incident: Incident): boolean;
+}
+
 /**
- * Starts the data feed and returns a function that stops it.
+ * Starts the data feed.
  *
  * It streams from the WebSocket server when one is configured and reachable.
  * Otherwise it runs the same simulator in the browser, so the static demo
  * works without a backend.
  */
-export function startTelemetry(sink: TelemetrySink, options: TelemetryOptions = {}): () => void {
+export function startTelemetry(sink: TelemetrySink, options: TelemetryOptions = {}): Telemetry {
   const {
     url,
     forceLocal = false,
@@ -53,13 +65,17 @@ export function startTelemetry(sink: TelemetrySink, options: TelemetryOptions = 
   let retryTimer: ReturnType<typeof setTimeout> | null = null;
   let connectTimer: ReturnType<typeof setTimeout> | null = null;
   let everLive = false;
+  let live = false;
   let reconnects = 0;
+  let localSim: FactorySimulator | null = null;
 
   const startLocal = (reason: string) => {
     if (stopped || localTimer) return;
     socket?.close();
     socket = null;
     const sim = new FactorySimulator({ seed: now() >>> 0 });
+    localSim = sim;
+    live = false;
     const end = now();
     const ticks = sim.backfill(end, HISTORY_SEND_SECONDS);
     const history: Record<string, Reading[]> = Object.fromEntries(sim.machines.map((m) => [m.id, []]));
@@ -100,6 +116,7 @@ export function startTelemetry(sink: TelemetrySink, options: TelemetryOptions = 
       if (msg.type === 'hello') {
         gotMessage = true;
         everLive = true;
+        live = true;
         reconnects = 0;
         if (connectTimer) clearTimeout(connectTimer);
         sink.applyHello(msg);
@@ -112,6 +129,7 @@ export function startTelemetry(sink: TelemetrySink, options: TelemetryOptions = 
     ws.onclose = () => {
       if (connectTimer) clearTimeout(connectTimer);
       if (stopped || socket !== ws) return;
+      live = false;
       socket = null;
       if (!everLive) {
         startLocal('The simulator server could not be reached');
@@ -131,13 +149,29 @@ export function startTelemetry(sink: TelemetrySink, options: TelemetryOptions = 
   if (forceLocal || !url || !WebSocketImpl) startLocal(forceLocal ? 'Local simulation was requested' : 'No simulator server is configured');
   else connect();
 
-  return () => {
-    stopped = true;
-    if (localTimer) clearInterval(localTimer);
-    if (retryTimer) clearTimeout(retryTimer);
-    if (connectTimer) clearTimeout(connectTimer);
-    socket?.close();
-    socket = null;
+  return {
+    stop: () => {
+      stopped = true;
+      if (localTimer) clearInterval(localTimer);
+      if (retryTimer) clearTimeout(retryTimer);
+      if (connectTimer) clearTimeout(connectTimer);
+      socket?.close();
+      socket = null;
+    },
+    inject: (machineId, incident) => {
+      if (stopped) return false;
+      if (localSim) {
+        if (!localSim.machines.some((m) => m.id === machineId)) return false;
+        localSim.inject(machineId, incident);
+        return true;
+      }
+      if (live && socket) {
+        const msg: InjectMessage = { type: 'inject', machineId, incident };
+        socket.send(JSON.stringify(msg));
+        return true;
+      }
+      return false;
+    },
   };
 }
 

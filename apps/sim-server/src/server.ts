@@ -7,6 +7,7 @@ import {
   HISTORY_SEND_SECONDS,
   PROTOCOL_VERSION,
   TICK_MS,
+  parseClientMessage,
   type Alert,
   type HelloMessage,
   type Reading,
@@ -23,6 +24,8 @@ export interface SimServerOptions {
   allowedOrigins?: string[];
   /** Seconds of history simulated at start-up so charts are not empty. */
   backfillSeconds?: number;
+  /** Let browsers start incidents (the demo's "Trigger incident" button). Default true. */
+  allowInject?: boolean;
   log?: (msg: string) => void;
 }
 
@@ -34,6 +37,8 @@ export interface SimServer {
 }
 
 const MAX_ALERTS_KEPT = 500;
+/** One injected incident per client per this many ms, so a stuck button cannot flood the hall. */
+const INJECT_COOLDOWN_MS = 1000;
 const ALERTS_SENT_ON_HELLO = 100;
 
 export async function startSimServer(options: SimServerOptions = {}): Promise<SimServer> {
@@ -45,6 +50,7 @@ export async function startSimServer(options: SimServerOptions = {}): Promise<Si
     tickMs = TICK_MS,
     allowedOrigins = [],
     backfillSeconds = HISTORY_SEND_SECONDS,
+    allowInject = true,
     log = () => {},
   } = options;
 
@@ -103,6 +109,18 @@ export async function startSimServer(options: SimServerOptions = {}): Promise<Si
     socket.on('error', () => socket.terminate());
     socket.send(JSON.stringify(helloFor()));
     log(`client connected (${wss.clients.size} total)`);
+
+    let lastInject = 0;
+    socket.on('message', (data, isBinary) => {
+      if (!allowInject || isBinary) return;
+      const msg = parseClientMessage(data.toString());
+      if (!msg || !sim.machines.some((m) => m.id === msg.machineId)) return;
+      const now = Date.now();
+      if (now - lastInject < INJECT_COOLDOWN_MS) return;
+      lastInject = now;
+      sim.inject(msg.machineId, msg.incident);
+      log(`incident "${msg.incident}" started on ${msg.machineId}`);
+    });
     socket.on('close', () => log(`client left (${wss.clients.size} total)`));
   });
 

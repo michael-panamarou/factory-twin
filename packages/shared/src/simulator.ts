@@ -2,13 +2,10 @@ import { MACHINES } from './layout.ts';
 import { TICK_MS, type TickMessage } from './protocol.ts';
 import { Rng } from './rng.ts';
 import { evaluateStatus } from './status.ts';
-import type { Alert, MachineSpec, Reading } from './types.ts';
+import type { Alert, Incident, MachineSpec, Reading } from './types.ts';
 
 /** What the simulated machine is going through. Each mode shapes the sensor values differently. */
 export type SimMode = 'normal' | 'overheating' | 'bearing' | 'jam' | 'fault' | 'recovering';
-
-/** Incidents that can be injected by hand, for demos and tests. */
-export type Incident = 'overheating' | 'bearing' | 'jam' | 'fault';
 
 interface MachineState {
   spec: MachineSpec;

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { FactorySimulator, MACHINES, PROTOCOL_VERSION } from '@factory-twin/shared';
+import { FactorySimulator, MACHINES, PROTOCOL_VERSION, parseClientMessage, type TickMessage } from '@factory-twin/shared';
 import type { ConnectionState } from '../state/store';
 import { sourceFromLocation, startTelemetry, type TelemetrySink } from './telemetry';
 
@@ -9,8 +9,12 @@ class FakeSocket {
   onmessage: ((e: MessageEvent) => void) | null = null;
   onclose: (() => void) | null = null;
   closed = false;
+  sent: string[] = [];
   constructor(public url: string) {
     FakeSocket.instances.push(this);
+  }
+  send(data: string) {
+    this.sent.push(data);
   }
   close() {
     if (this.closed) return;
@@ -24,11 +28,15 @@ class FakeSocket {
 
 const makeSink = () => {
   const modes: ConnectionState['mode'][] = [];
-  const sink: TelemetrySink & { hellos: number; ticks: number } = {
+  const sink: TelemetrySink & { hellos: number; ticks: number; last: TickMessage | null } = {
     hellos: 0,
     ticks: 0,
+    last: null,
     applyHello: () => void sink.hellos++,
-    applyTick: () => void sink.ticks++,
+    applyTick: (t) => {
+      sink.ticks++;
+      sink.last = t;
+    },
     setConnection: (c) => void modes.push(c.mode),
   };
   return { sink, modes };
@@ -47,12 +55,12 @@ const ws = FakeSocket as unknown as typeof WebSocket;
 describe('startTelemetry', () => {
   it('simulates locally when no server is configured', () => {
     const { sink, modes } = makeSink();
-    const stop = startTelemetry(sink, { url: '' });
+    const telemetry = startTelemetry(sink, { url: '' });
     expect(modes).toEqual(['local']);
     expect(sink.hellos).toBe(1);
     vi.advanceTimersByTime(3000);
     expect(sink.ticks).toBe(3);
-    stop();
+    telemetry.stop();
     vi.advanceTimersByTime(3000);
     expect(sink.ticks).toBe(3);
   });
@@ -97,6 +105,35 @@ describe('startTelemetry', () => {
       vi.advanceTimersByTime(20_000);
     }
     expect(modes.at(-1)).toBe('local');
+  });
+});
+
+describe('inject', () => {
+  it('starts an incident in the browser simulator', () => {
+    const { sink } = makeSink();
+    const telemetry = startTelemetry(sink, { url: '' });
+    expect(telemetry.inject('PRS-01', 'fault')).toBe(true);
+    vi.advanceTimersByTime(5000);
+    expect(sink.last?.readings.find((r) => r.machineId === 'PRS-01')?.status).toBe('error');
+    expect(telemetry.inject('NOPE-99', 'fault')).toBe(false);
+    telemetry.stop();
+  });
+
+  it('sends the incident to the server once live', () => {
+    const { sink } = makeSink();
+    const telemetry = startTelemetry(sink, { url: 'ws://test/ws', WebSocketImpl: ws });
+    const socket = FakeSocket.instances[0]!;
+    expect(telemetry.inject('CNC-01', 'jam')).toBe(false); // still connecting
+    socket.receive(hello());
+    expect(telemetry.inject('CNC-01', 'jam')).toBe(true);
+    expect(socket.sent.map(parseClientMessage)).toEqual([{ type: 'inject', machineId: 'CNC-01', incident: 'jam' }]);
+  });
+
+  it('refuses after stop', () => {
+    const { sink } = makeSink();
+    const telemetry = startTelemetry(sink, { url: '' });
+    telemetry.stop();
+    expect(telemetry.inject('CNC-01', 'fault')).toBe(false);
   });
 });
 
