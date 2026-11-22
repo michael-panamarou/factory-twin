@@ -146,6 +146,46 @@ test.describe('Factory Twin dashboard', () => {
     });
   }
 
+  test('alert list: a new incident raises the badge, and "jump to machine" flies there', async ({ page }) => {
+    await page.goto('/?source=local');
+    await waitForScene(page);
+
+    // Start an incident, then close its details so we arrive via the alert list.
+    await page.getByRole('button', { name: 'Trigger incident' }).click();
+    const machineId = (await page.evaluate(() => window.__factoryTwin!.getState().selectedId))!;
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('alerts-badge')).toBeVisible({ timeout: 10_000 });
+
+    await page.getByRole('button', { name: /^Alerts, \d+ new$/ }).click();
+    const list = page.getByTestId('alerts-panel');
+    await expect(list).toHaveAttribute('aria-hidden', 'false');
+    // A jam can clear before the list opens, so look for the warning or error row, not just the newest.
+    const row = list.locator(`.alert-row--warning[data-machine="${machineId}"], .alert-row--error[data-machine="${machineId}"]`).first();
+    await expect(row).toHaveAccessibleName(/^(Warning|Error), new:/);
+
+    await row.click();
+    await expect(page.getByTestId('details-panel')).toHaveAttribute('aria-hidden', 'false');
+    expect(await page.evaluate(() => window.__factoryTwin!.getState().selectedId)).toBe(machineId);
+    await waitForCameraToSettle(page);
+
+    // The machine is drawn in the gap between the alert list and the details panel.
+    const canvas = (await page.locator('canvas').boundingBox())!;
+    const onScreen = (await page.evaluate((id) => window.__factoryTwinProject!(id), machineId))!;
+    const left = (await list.boundingBox())!;
+    const right = (await page.getByTestId('details-panel').boundingBox())!;
+    const x = canvas.x + onScreen.x;
+    expect(x).toBeGreaterThan(left.x + left.width);
+    expect(x).toBeLessThan(right.x);
+
+    // Escape closes the list first (and marks it read), then the details panel.
+    await page.keyboard.press('Escape');
+    await expect(list).toHaveAttribute('aria-hidden', 'true');
+    await expect(page.getByTestId('alerts-badge')).toHaveCount(0);
+    await expect(page.getByTestId('details-panel')).toHaveAttribute('aria-hidden', 'false');
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('details-panel')).toHaveAttribute('aria-hidden', 'true');
+  });
+
   test('falls back to the in-browser simulator', async ({ page }) => {
     await page.goto('/?source=local');
     await expect(page.getByTestId('connection')).toHaveText('Simulated in browser');
@@ -155,6 +195,21 @@ test.describe('Factory Twin dashboard', () => {
   test('uses the browser simulator when the server is unreachable', async ({ page }) => {
     await page.goto('/?ws=ws://localhost:9/ws');
     await expect(page.getByTestId('connection')).toHaveText('Simulated in browser', { timeout: 15_000 });
+  });
+
+  test('alert list fills the screen on a phone and gets out of the way on jump @mobile', async ({ page }) => {
+    await page.goto('/?source=local');
+    await waitForScene(page);
+    await page.getByRole('button', { name: /^Alerts/ }).click();
+    const list = page.getByTestId('alerts-panel');
+    await expect(list.getByRole('heading', { name: 'Alerts' })).toBeInViewport();
+
+    const row = list.getByRole('button', { name: /Jump to machine/ }).first();
+    const machineId = await row.getAttribute('data-machine');
+    await row.click();
+    await expect(list).toHaveAttribute('aria-hidden', 'true');
+    await expect(page.getByTestId('details-panel')).toHaveAttribute('aria-hidden', 'false');
+    expect(await page.evaluate(() => window.__factoryTwin!.getState().selectedId)).toBe(machineId);
   });
 
   test('works as a bottom sheet on a phone @mobile', async ({ page }) => {

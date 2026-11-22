@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import {
+    ALERTS_WIDTH,
     PANEL_WIDTH,
     SHEET_HEIGHT_RATIO,
     easeInOutCubic,
@@ -43,19 +44,35 @@ describe('framingDistance', () => {
 });
 
 describe('panelViewOffset and visibleArea', () => {
-    it('does nothing while the panel is closed', () => {
-        expect(panelViewOffset(1440, 900, false)).toEqual({ x: 0, y: 0 });
-        expect(visibleArea(1440, false)).toEqual({ width: 1, height: 1 });
+    const none = { details: false, alerts: false };
+    const details = { details: true, alerts: false };
+    const alerts = { details: false, alerts: true };
+    const both = { details: true, alerts: true };
+
+    it('does nothing while no overlay is open', () => {
+        expect(panelViewOffset(1440, 900, none)).toEqual({ x: 0, y: 0 });
+        expect(visibleArea(1440, none)).toEqual({ width: 1, height: 1 });
     });
 
     it('shifts left by half the side panel on wide screens', () => {
-        expect(panelViewOffset(1440, 900, true)).toEqual({ x: PANEL_WIDTH / 2, y: 0 });
-        expect(visibleArea(1440, true).width).toBeCloseTo((1440 - PANEL_WIDTH) / 1440);
+        expect(panelViewOffset(1440, 900, details)).toEqual({ x: PANEL_WIDTH / 2, y: 0 });
+        expect(visibleArea(1440, details).width).toBeCloseTo((1440 - PANEL_WIDTH) / 1440);
     });
 
-    it('shifts up by half the bottom sheet on phones', () => {
-        expect(panelViewOffset(400, 800, true)).toEqual({ x: 0, y: (800 * SHEET_HEIGHT_RATIO) / 2 });
-        expect(visibleArea(400, true).height).toBeCloseTo(1 - SHEET_HEIGHT_RATIO);
+    it('shifts right by half the alert list on wide screens', () => {
+        expect(panelViewOffset(1440, 900, alerts)).toEqual({ x: -ALERTS_WIDTH / 2, y: 0 });
+        expect(visibleArea(1440, alerts).width).toBeCloseTo((1440 - ALERTS_WIDTH) / 1440);
+    });
+
+    it('centres between the alert list and the side panel when both are open', () => {
+        expect(panelViewOffset(1440, 900, both)).toEqual({ x: (PANEL_WIDTH - ALERTS_WIDTH) / 2, y: 0 });
+        expect(visibleArea(1440, both).width).toBeCloseTo((1440 - PANEL_WIDTH - ALERTS_WIDTH) / 1440);
+    });
+
+    it('shifts up by half the bottom sheet on phones, and ignores the full-screen alert list', () => {
+        expect(panelViewOffset(400, 800, details)).toEqual({ x: 0, y: (800 * SHEET_HEIGHT_RATIO) / 2 });
+        expect(visibleArea(400, details).height).toBeCloseTo(1 - SHEET_HEIGHT_RATIO);
+        expect(panelViewOffset(400, 800, alerts)).toEqual({ x: 0, y: 0 });
     });
 });
 

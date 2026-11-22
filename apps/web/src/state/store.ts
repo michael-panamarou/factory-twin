@@ -37,6 +37,12 @@ export interface TwinState {
   lastUpdate: number | null;
   /** Starts an incident through the running data feed; null until one is running. */
   injectIncident: ((machineId: string, incident: Incident) => boolean) | null;
+  /** Whether the hall-wide alert list is open. */
+  alertsOpen: boolean;
+  /** Alerts newer than this count as unread. Null until the first data arrives. */
+  lastSeenAlertTs: number | null;
+  /** Bumped by focusMachine(), so the camera flies again even to the machine already selected. */
+  focusRequest: number;
 
   applyHello(msg: HelloMessage): void;
   applyTick(msg: TickMessage): void;
@@ -44,12 +50,20 @@ export interface TwinState {
   hover(id: string | null): void;
   setConnection(connection: ConnectionState): void;
   setInjector(injector: TwinState['injectIncident']): void;
+  /** Selects a machine and asks the camera to fly to it. */
+  focusMachine(id: string): void;
+  /** Opens or closes the alert list. Closing it marks every alert as read. */
+  setAlertsOpen(open: boolean): void;
+  markAlertsRead(): void;
 }
 
 const appendCapped = <T>(list: readonly T[], items: readonly T[], cap: number): T[] => {
   const next = list.concat(items);
   return next.length > cap ? next.slice(next.length - cap) : next;
 };
+
+const newestAlertTs = (state: Pick<TwinState, 'alerts' | 'lastSeenAlertTs'>): number =>
+    Math.max(state.lastSeenAlertTs ?? 0, state.alerts.at(-1)?.ts ?? 0);
 
 export const useTwinStore = create<TwinState>()((set) => ({
   machines: MACHINES,
@@ -61,6 +75,9 @@ export const useTwinStore = create<TwinState>()((set) => ({
   connection: { mode: 'connecting' },
   lastUpdate: null,
   injectIncident: null,
+  alertsOpen: false,
+  lastSeenAlertTs: null,
+  focusRequest: 0,
 
   applyHello: (msg) =>
       set((state) => {
@@ -72,6 +89,9 @@ export const useTwinStore = create<TwinState>()((set) => ({
           if (last) latest[id] = last;
         }
         const known = new Set(msg.machines.map((m) => m.id));
+        // Alerts that arrive with a hello are history, not news: a fresh start,
+        // a reconnect or a switch to the browser simulator all start "read".
+        const newestAlert = msg.alerts.reduce((max, a) => Math.max(max, a.ts), 0);
         return {
           machines: msg.machines,
           history,
@@ -79,6 +99,7 @@ export const useTwinStore = create<TwinState>()((set) => ({
           alerts: msg.alerts.slice(-MAX_ALERTS),
           selectedId: state.selectedId && known.has(state.selectedId) ? state.selectedId : null,
           lastUpdate: msg.serverTime,
+          lastSeenAlertTs: Math.max(state.lastSeenAlertTs ?? 0, newestAlert),
         };
       }),
 
@@ -98,6 +119,10 @@ export const useTwinStore = create<TwinState>()((set) => ({
   hover: (id) => set({ hoveredId: id }),
   setConnection: (connection) => set({ connection }),
   setInjector: (injector) => set({ injectIncident: injector }),
+  focusMachine: (id) => set((state) => ({ selectedId: id, focusRequest: state.focusRequest + 1 })),
+  setAlertsOpen: (open) =>
+      set((state) => (open ? { alertsOpen: true } : { alertsOpen: false, lastSeenAlertTs: newestAlertTs(state) })),
+  markAlertsRead: () => set((state) => ({ lastSeenAlertTs: newestAlertTs(state) })),
 }));
 
 /** Status of one machine; components re-render only when it changes. */

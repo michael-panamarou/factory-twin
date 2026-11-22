@@ -2,6 +2,7 @@ import { Suspense, lazy, useEffect } from 'react';
 import { useTwinStore } from './state/store';
 import { sourceFromLocation, startTelemetry } from './data/telemetry';
 import { FactoryScene } from './scene/FactoryScene';
+import { AlertsPanel, closeAlerts } from './ui/AlertsPanel';
 import { MachineRoster } from './ui/MachineRoster';
 import { TopBar } from './ui/TopBar';
 
@@ -31,7 +32,10 @@ export function App() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') useTwinStore.getState().select(null);
+      if (e.key !== 'Escape') return;
+      // Close the alert list first; a second Escape closes the details panel.
+      if (useTwinStore.getState().alertsOpen) closeAlerts();
+      else useTwinStore.getState().select(null);
     };
     window.addEventListener('keydown', onKey);
     // Warm the panel chunk so the first click opens instantly.
@@ -48,6 +52,7 @@ export function App() {
         <main className="stage">
           <FactoryScene />
           <MachineRoster />
+          <AlertsPanel />
           <Suspense fallback={null}>
             <DetailsPanel />
           </Suspense>

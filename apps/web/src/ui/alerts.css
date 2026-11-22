@@ -1,0 +1,241 @@
+/* Alerts button (top bar) and the alert list drawer. */
+
+.alerts-button {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border: 1px solid var(--hairline);
+    border-radius: 8px;
+    background: var(--surface-2);
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.alerts-button:hover,
+.alerts-button[aria-expanded='true'] {
+    background: var(--surface-3);
+}
+
+.alerts-button__badge {
+    min-width: 18px;
+    padding: 1px 5px;
+    border-radius: 999px;
+    background: var(--warning);
+    color: #1a1a19;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 16px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+
+.alerts-button__badge.is-error {
+    background: var(--error);
+    color: #fff;
+}
+
+/* ---------- Alert list ---------- */
+
+.alerts-panel {
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 360px;
+    display: flex;
+    flex-direction: column;
+    background: var(--surface);
+    border-right: 1px solid var(--hairline);
+    transform: translateX(-100%);
+    transition: transform 220ms ease;
+    visibility: hidden;
+    z-index: 29;
+    outline: none;
+}
+
+.alerts-panel.is-open {
+    transform: none;
+    visibility: visible;
+}
+
+.alerts-panel__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 16px 8px;
+}
+
+.alerts-panel__header h2 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 650;
+}
+
+.alerts-panel__toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 0 16px 10px;
+    border-bottom: 1px solid var(--hairline);
+}
+
+.alerts-panel__toolbar .segmented {
+    margin: 0;
+}
+
+.segmented__count {
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.link-button {
+    padding: 4px 2px;
+    border: 0;
+    background: none;
+    color: var(--accent);
+    font-size: 12px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.link-button:disabled {
+    color: var(--muted);
+    cursor: default;
+}
+
+.alerts-panel__empty {
+    padding: 16px;
+    color: var(--muted);
+}
+
+.alerts-panel__list {
+    flex: 1;
+    margin: 0;
+    padding: 8px;
+    overflow-y: auto;
+    list-style: none;
+}
+
+.alert-row {
+    display: grid;
+    grid-template-columns: 16px 1fr auto;
+    gap: 10px;
+    align-items: start;
+    width: 100%;
+    padding: 9px 10px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background: none;
+    text-align: left;
+    cursor: pointer;
+}
+
+.alert-row:hover,
+.alert-row:focus-visible {
+    background: var(--surface-2);
+    border-color: var(--hairline);
+}
+
+.alert-row--warning .alert-row__icon { color: var(--warning); }
+.alert-row--error .alert-row__icon { color: var(--error); }
+.alert-row--info .alert-row__icon { color: var(--running); }
+
+.alert-row__icon {
+    font-size: 11px;
+    line-height: 18px;
+}
+
+.alert-row__body {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+}
+
+.alert-row__head {
+    display: flex;
+    gap: 6px;
+    align-items: baseline;
+    min-width: 0;
+}
+
+.alert-row__machine {
+    font-size: 12px;
+    font-weight: 650;
+    font-variant-numeric: tabular-nums;
+}
+
+.alert-row__name {
+    overflow: hidden;
+    color: var(--ink-2);
+    font-size: 12px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.alert-row__message {
+    color: var(--ink-2);
+    font-size: 12px;
+}
+
+.alert-row--info .alert-row__message {
+    color: var(--muted);
+}
+
+.alert-row__meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--muted);
+    font-size: 11px;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+.alert-row__dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--accent);
+}
+
+.alert-row__jump {
+    opacity: 0;
+    color: var(--ink);
+    transition: opacity 120ms;
+}
+
+.alert-row:hover .alert-row__jump,
+.alert-row:focus-visible .alert-row__jump {
+    opacity: 1;
+}
+
+.alert-row.is-unread .alert-row__message {
+    color: var(--ink);
+}
+
+@media (max-width: 760px) {
+    .alerts-button {
+        padding: 6px 8px;
+    }
+
+    .alerts-button__label {
+        display: none;
+    }
+
+    .alerts-panel {
+        width: 100%;
+        z-index: 40;
+        border-right: 0;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .alerts-panel {
+        transition: none;
+    }
+}

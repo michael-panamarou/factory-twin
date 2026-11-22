@@ -1,6 +1,7 @@
 import { useTwinStore, selectStatusCounts } from '../state/store';
 import { useShallow } from 'zustand/react/shallow';
 import { STATUS_ICON } from '../theme';
+import { AlertsButton } from './AlertsButton';
 import { TriggerIncidentButton } from './TriggerIncidentButton';
 
 const CONNECTION_TEXT = {
@@ -36,6 +37,7 @@ export function TopBar() {
                 </li>
             </ul>
 
+            <AlertsButton />
             <TriggerIncidentButton />
 
             <div className={`connection connection--${connection.mode}`} role="status" title={connection.reason ?? connection.url} data-testid="connection">

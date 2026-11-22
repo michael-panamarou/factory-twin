@@ -74,4 +74,32 @@ describe('useTwinStore', () => {
     useTwinStore.getState().applyHello(hello());
     expect(useTwinStore.getState().selectedId).toBeNull();
   });
+
+
+  it('treats alerts that come with a hello as read, and later ones as unread', () => {
+    const old = { id: 'a', machineId: 'CNC-01', ts: T0, severity: 'warning' as const, message: 'old' };
+    useTwinStore.getState().applyHello(hello({ alerts: [old] }));
+    expect(useTwinStore.getState().lastSeenAlertTs).toBe(T0);
+
+    // A second hello (reconnect, or React starting the feed twice in dev) never goes backwards.
+    useTwinStore.getState().applyHello(hello({ alerts: [{ ...old, ts: T0 - 5000 }] }));
+    expect(useTwinStore.getState().lastSeenAlertTs).toBe(T0);
+  });
+
+  it('marks alerts read when the list closes', () => {
+    useTwinStore.getState().applyHello(hello());
+    const fresh = { id: 'b', machineId: 'PRS-01', ts: T0 + 5000, severity: 'error' as const, message: 'stopped' };
+    useTwinStore.getState().applyTick({ type: 'tick', ts: T0 + 5000, readings: [], alerts: [fresh] });
+    useTwinStore.getState().setAlertsOpen(true);
+    expect(useTwinStore.getState().lastSeenAlertTs).toBeLessThan(fresh.ts);
+    useTwinStore.getState().setAlertsOpen(false);
+    expect(useTwinStore.getState().lastSeenAlertTs).toBe(fresh.ts);
+  });
+
+  it('focusMachine selects and bumps the focus request', () => {
+    useTwinStore.getState().focusMachine('RBT-02');
+    useTwinStore.getState().focusMachine('RBT-02');
+    expect(useTwinStore.getState().selectedId).toBe('RBT-02');
+    expect(useTwinStore.getState().focusRequest).toBe(2);
+  });
 });

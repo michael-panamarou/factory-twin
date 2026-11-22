@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useTwinStore } from '../state/store';
-import { FLY_DURATION_MS, easeInOutCubic, framingView, interpolateView, MIN_FRAMING_DISTANCE, panelViewOffset, visibleArea, type View } from './cameraMath.ts';
+import { FLY_DURATION_MS, easeInOutCubic, framingView, interpolateView, MIN_FRAMING_DISTANCE, panelViewOffset, visibleArea, type View } from './cameraMath';
 
 /** The parts of drei's OrbitControls the rig uses. */
 interface OrbitControlsLike {
@@ -29,7 +29,8 @@ const cloneView = (v: View): View => ({ position: v.position.clone(), target: v.
  * Moves the camera when the selection changes: flies in to frame the selected
  * machine, and back to the overview when nothing is selected. It also shifts
  * the rendered image so the machine is centred in the part of the screen the
- * details panel leaves free. Any drag, scroll or pinch cancels a flight.
+ * details panel and the alert list leave free. Any drag, scroll or pinch
+ * cancels a flight.
  */
 export function CameraRig() {
     const camera = useThree((s) => s.camera) as THREE.PerspectiveCamera;
@@ -37,6 +38,7 @@ export function CameraRig() {
     const scene = useThree((s) => s.scene);
     const size = useThree((s) => s.size);
     const selectedId = useTwinStore((s) => s.selectedId);
+    const focusRequest = useTwinStore((s) => s.focusRequest);
 
     const home = useRef<View | null>(null);
     const flight = useRef<Flight | null>(null);
@@ -68,20 +70,21 @@ export function CameraRig() {
             if (!object) return;
             const box = new THREE.Box3().setFromObject(object);
             if (box.isEmpty()) return;
-            const visible = visibleArea(size.width, true);
+            const visible = visibleArea(size.width, { details: true, alerts: useTwinStore.getState().alertsOpen });
             const minDistance = Math.max(controls.minDistance, MIN_FRAMING_DISTANCE);
             to = framingView(box, current, camera.fov, size.width / size.height, visible, minDistance, controls.maxDistance);
         } else {
             to = cloneView(home.current);
         }
         flight.current = { from: current, to, start: performance.now(), duration: prefersReducedMotion() ? 0 : FLY_DURATION_MS };
-        // Only a change of selection starts a flight; resizing does not.
+        // Only a change of selection (or a "jump to machine") starts a flight; resizing does not.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedId, controls]);
+    }, [selectedId, focusRequest, controls]);
 
     useFrame((_, delta) => {
-        // Ease the image shift alongside the panel's slide-in.
-        const want = panelViewOffset(size.width, size.height, useTwinStore.getState().selectedId !== null);
+        // Ease the image shift alongside the panels sliding in and out.
+        const { selectedId: selected, alertsOpen } = useTwinStore.getState();
+        const want = panelViewOffset(size.width, size.height, { details: selected !== null, alerts: alertsOpen });
         const k = prefersReducedMotion() ? 1 : 1 - Math.exp(-delta * 10);
         const o = offset.current;
         o.x += (want.x - o.x) * k;

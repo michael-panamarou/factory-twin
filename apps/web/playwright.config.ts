@@ -13,11 +13,13 @@ const launchOptions = {
 
 export default defineConfig({
   testDir: './e2e',
-  timeout: 45_000,
+  // WebGL runs in software in headless Chromium, so 3D flows are slow on CI machines.
+  timeout: 90_000,
   expect: { timeout: 10_000 },
   fullyParallel: true,
   forbidOnly: CI,
   retries: CI ? 1 : 0,
+  workers: CI ? 2 : undefined,
   reporter: CI ? [['github'], ['html', { open: 'never' }]] : 'list',
   use: {
     baseURL: `http://localhost:${WEB_PORT}`,

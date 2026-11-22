@@ -8,6 +8,7 @@ export interface View {
 
 /** Must match the panel sizes in styles.css. */
 export const PANEL_WIDTH = 400;
+export const ALERTS_WIDTH = 360;
 export const MOBILE_BREAKPOINT = 760;
 export const SHEET_HEIGHT_RATIO = 0.68;
 
@@ -36,22 +37,36 @@ export function framingDistance(radius: number, fovDeg: number, aspect: number, 
     return (radius / Math.sin(Math.min(vHalf, hHalf))) * margin;
 }
 
-/**
- * Pixel shift of the rendered image so the scene's centre sits in the part of
- * the canvas the details panel leaves visible: left of the side panel on wide
- * screens, above the bottom sheet on phones.
- */
-export function panelViewOffset(width: number, height: number, panelOpen: boolean): { x: number; y: number } {
-    if (!panelOpen) return { x: 0, y: 0 };
-    if (width <= MOBILE_BREAKPOINT) return { x: 0, y: (height * SHEET_HEIGHT_RATIO) / 2 };
-    return { x: Math.min(PANEL_WIDTH, width) / 2, y: 0 };
+/** Which overlays cover the 3D view: the details panel (right) and the alert list (left). */
+export interface Overlays {
+    details: boolean;
+    alerts: boolean;
 }
 
-/** The part of the canvas the details panel leaves visible, as fractions of its width and height. */
-export function visibleArea(width: number, panelOpen: boolean): Visible {
-    if (!panelOpen) return { width: 1, height: 1 };
-    if (width <= MOBILE_BREAKPOINT) return { width: 1, height: 1 - SHEET_HEIGHT_RATIO };
-    return { width: Math.max(0.2, (width - PANEL_WIDTH) / width), height: 1 };
+/** Widths in px that the overlays cover on the left and right of a wide screen. */
+function coveredWidths(width: number, overlays: Overlays): { left: number; right: number } {
+    const right = overlays.details ? Math.min(PANEL_WIDTH, width) : 0;
+    const left = overlays.alerts ? Math.min(ALERTS_WIDTH, Math.max(0, width - right)) : 0;
+    return { left, right };
+}
+
+/**
+ * Pixel shift of the rendered image so the scene's centre sits in the part of
+ * the canvas the overlays leave visible: between the alert list and the side
+ * panel on wide screens, above the bottom sheet on phones. (On phones the
+ * alert list covers the whole screen, so it does not shift anything.)
+ */
+export function panelViewOffset(width: number, height: number, overlays: Overlays): { x: number; y: number } {
+    if (width <= MOBILE_BREAKPOINT) return { x: 0, y: overlays.details ? (height * SHEET_HEIGHT_RATIO) / 2 : 0 };
+    const { left, right } = coveredWidths(width, overlays);
+    return { x: (right - left) / 2, y: 0 };
+}
+
+/** The part of the canvas the overlays leave visible, as fractions of its width and height. */
+export function visibleArea(width: number, overlays: Overlays): Visible {
+    if (width <= MOBILE_BREAKPOINT) return { width: 1, height: overlays.details ? 1 - SHEET_HEIGHT_RATIO : 1 };
+    const { left, right } = coveredWidths(width, overlays);
+    return { width: Math.max(0.2, (width - left - right) / width), height: 1 };
 }
 
 /** Closest the camera gets when framing; nearer than this the models look blocky. */

@@ -21,6 +21,7 @@ and clicking a machine opens a side panel with live charts and alerts.
 - **Animation driven by the data**: robot arms and the conveyor move at a speed set by throughput and stop when a machine faults.
 - **Two data sources**: a Node.js WebSocket server, or the same simulator running in the browser. The static demo therefore works without a backend, and the app falls back to the browser simulator when the server can't be reached.
 - **Trigger incident button**: starts a fault or a jam on a random running machine and flies the camera to it, so visitors see a machine go amber or red straight away. It works with the server and with the browser simulator.
+- **Alert list**: an Alerts button with an unread badge opens every alert in the hall, newest first, filterable by warnings and errors. Choosing one flies the camera to its machine and opens its details. It is a drawer on desktop (the machine is centred between the list and the panel) and full screen on phones.
 - A machine list beside the scene for keyboard and screen-reader users, and a bottom-sheet layout on phones.
 
 ## Quick start
@@ -109,8 +110,8 @@ To run the end-to-end tests against an existing Chromium instead of the one Play
 - [x] Orbit camera
 - [x] Machines coloured by live data
 - [x] Details panel with temperature and throughput charts
-- [ ] Camera flies to a machine when you click it
-- [ ] Alert list with "jump to machine"
+- [x] Camera flies to a machine when you click it
+- [x] Alert list with "jump to machine"
 - [ ] Timeline that replays the last hour (the server already keeps it)
 - [ ] Performance: steady 60 fps, lower quality on phones (DPR, shadows, instancing)
 - [ ] 2D fallback view
