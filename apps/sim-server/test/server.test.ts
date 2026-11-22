@@ -47,6 +47,19 @@ describe('sim-server', () => {
     expect(tick.readings).toHaveLength(MACHINES.length);
   });
 
+  it('compresses messages, since the hello carries an hour of history', async () => {
+    server = await startSimServer({ port: 0, host: '127.0.0.1', backfillSeconds: 5 });
+    const extensions = await new Promise<string>((resolve, reject) => {
+      const socket = new WebSocket(server!.url);
+      socket.on('open', () => {
+        resolve(socket.extensions);
+        socket.close();
+      });
+      socket.on('error', reject);
+    });
+    expect(extensions).toContain('permessage-deflate');
+  });
+
   it('serves a health check', async () => {
     server = await startSimServer({ port: 0, host: '127.0.0.1', backfillSeconds: 5 });
     const res = await fetch(`http://127.0.0.1:${server.port}/health`);

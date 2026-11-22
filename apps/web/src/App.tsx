@@ -4,6 +4,7 @@ import { sourceFromLocation, startTelemetry } from './data/telemetry';
 import { FactoryScene } from './scene/FactoryScene';
 import { AlertsPanel, closeAlerts } from './ui/AlertsPanel';
 import { MachineRoster } from './ui/MachineRoster';
+import { Timeline } from './ui/Timeline';
 import { TopBar } from './ui/TopBar';
 
 // The panel pulls in Recharts; load it in its own chunk, after the scene.
@@ -19,7 +20,20 @@ function telemetryConfig() {
   };
 }
 
+/** One line of help, or what is being replayed. */
+function SceneHint() {
+  const replaying = useTwinStore((s) => s.replay !== null);
+  return (
+      <p className={`hint${replaying ? ' is-replay' : ''}`} aria-hidden="true">
+        {replaying ? 'Replay: showing the hall as it was · press Live to return' : 'Drag to orbit · scroll to zoom · click a machine for details'}
+      </p>
+  );
+}
+
 export function App() {
+  const detailsOpen = useTwinStore((s) => s.selectedId !== null);
+  const alertsOpen = useTwinStore((s) => s.alertsOpen);
+
   useEffect(() => {
     const { applyHello, applyTick, setConnection, setInjector } = useTwinStore.getState();
     const telemetry = startTelemetry({ applyHello, applyTick, setConnection }, telemetryConfig());
@@ -49,16 +63,16 @@ export function App() {
   return (
       <div className="app">
         <TopBar />
-        <main className="stage">
+        {/* The data attributes let the timeline keep clear of whichever panels are open. */}
+        <main className="stage" data-details={detailsOpen || undefined} data-alerts={alertsOpen || undefined}>
           <FactoryScene />
           <MachineRoster />
           <AlertsPanel />
           <Suspense fallback={null}>
             <DetailsPanel />
           </Suspense>
-          <p className="hint" aria-hidden="true">
-            Drag to orbit · scroll to zoom · click a machine for details
-          </p>
+          <Timeline />
+          <SceneHint />
         </main>
       </div>
   );

@@ -14,6 +14,19 @@ beforeEach(() => {
   for (const tick of sim.backfill(T0, 120)) useTwinStore.getState().applyTick(tick);
 });
 
+
+it('shows the machine as it was during a replay', () => {
+  useTwinStore.getState().select('CNC-01');
+  render(<DetailsPanel />);
+  const history = useTwinStore.getState().history['CNC-01']!;
+  const past = history[30]!;
+
+  act(() => useTwinStore.getState().seek(past.ts));
+  const panel = screen.getByTestId('details-panel');
+  const tempTile = within(panel).getByText('Temperature', { selector: '.kpi__label' }).closest('.kpi') as HTMLElement;
+  expect(within(tempTile).getByText(past.temperature.toFixed(1))).toBeInTheDocument();
+});
+
 describe('DetailsPanel', () => {
   it('stays empty until a machine is selected', () => {
     render(<DetailsPanel />);

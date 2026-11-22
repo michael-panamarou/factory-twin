@@ -10,7 +10,7 @@ import { useStatusGlow, useTintedModel } from './useStatusMaterials';
 
 /** 0..1, how hard the machine is working right now. Read inside useFrame, so no re-render. */
 const activityOf = (spec: MachineSpec): number => {
-  const reading = useTwinStore.getState().latest[spec.id];
+  const reading = useTwinStore.getState().shown[spec.id];
   if (!reading || reading.status === 'error') return 0;
   return Math.min(1.2, reading.throughput / spec.limits.nominalThroughput);
 };

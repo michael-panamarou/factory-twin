@@ -21,6 +21,7 @@ and clicking a machine opens a side panel with live charts and alerts.
 - **Animation driven by the data**: robot arms and the conveyor move at a speed set by throughput and stop when a machine faults.
 - **Two data sources**: a Node.js WebSocket server, or the same simulator running in the browser. The static demo therefore works without a backend, and the app falls back to the browser simulator when the server can't be reached.
 - **Trigger incident button**: starts a fault or a jam on a random running machine and flies the camera to it, so visitors see a machine go amber or red straight away. It works with the server and with the browser simulator.
+- **Timeline replay**: a bar along the bottom lets you scrub back through the last hour, or play it at 1×, 10× or 60×. The machines, the status counts and the details panel all show the hall as it was, alerts are marked on the track (errors taller than warnings), and Live returns to the present.
 - **Alert list**: an Alerts button with an unread badge opens every alert in the hall, newest first, filterable by warnings and errors. Choosing one flies the camera to its machine and opens its details. It is a drawer on desktop (the machine is centred between the list and the panel) and full screen on phones.
 - A machine list beside the scene for keyboard and screen-reader users, and a bottom-sheet layout on phones.
 
@@ -69,7 +70,7 @@ flowchart LR
 
 **Status.** `evaluateStatus()` in `packages/shared/src/status.ts` derives the status from temperature, vibration and throughput against each machine's limits, with hysteresis so a value sitting on a limit doesn't flap between two statuses. The server, the browser fallback and the tests all use this one function.
 
-**Protocol.** On connect the server sends `hello` (machines, the last 15 min of readings, recent alerts), then a `tick` every second with one reading per machine and any new alerts. Every message is validated by `parseServerMessage()` before it reaches the store.
+**Protocol.** On connect the server sends `hello` (machines, the last hour of readings, recent alerts; about 3 MB of JSON, roughly 200 kB with the WebSocket compression the server enables), then a `tick` every second with one reading per machine and any new alerts. Every message is validated by `parseServerMessage()` before it reaches the store.
 The only message a browser sends is `inject` (from the "Trigger incident" button); the server validates it with `parseClientMessage()` and accepts at most one per client per second.
 
 **Rendering.** Status colours change materials inside `useFrame` (no React re-render). Each model is cloned per machine so its tint is independent; geometry is shared. The whole scene is about 10k triangles and 560 kB of models.
@@ -112,7 +113,7 @@ To run the end-to-end tests against an existing Chromium instead of the one Play
 - [x] Details panel with temperature and throughput charts
 - [x] Camera flies to a machine when you click it
 - [x] Alert list with "jump to machine"
-- [ ] Timeline that replays the last hour (the server already keeps it)
+- [x] Timeline that replays the last hour
 - [ ] Performance: steady 60 fps, lower quality on phones (DPR, shadows, instancing)
 - [ ] 2D fallback view
 

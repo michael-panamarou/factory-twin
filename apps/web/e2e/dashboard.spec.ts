@@ -186,6 +186,33 @@ test.describe('Factory Twin dashboard', () => {
     await expect(page.getByTestId('details-panel')).toHaveAttribute('aria-hidden', 'true');
   });
 
+  test('timeline: scrub back to replay the past, play it, and return to live', async ({ page }) => {
+    await page.goto('/?source=local');
+    await waitForScene(page);
+    const timeline = page.getByTestId('timeline');
+    const slider = timeline.getByRole('slider', { name: 'Time' });
+    const trigger = page.getByRole('button', { name: 'Trigger incident' });
+    const replayTime = () => page.evaluate(() => window.__factoryTwin!.getState().replay?.time ?? null);
+    await expect(slider).toHaveAttribute('aria-valuetext', 'Live');
+
+    // Jump to the start of the hour with the keyboard.
+    await slider.focus();
+    await page.keyboard.press('Home');
+    await expect(slider).toHaveAttribute('aria-valuetext', /ago$/);
+    await expect(trigger).toBeDisabled();
+    const start = (await replayTime())!;
+
+    await timeline.getByRole('button', { name: '60×' }).click();
+    await timeline.getByRole('button', { name: 'Play replay' }).click();
+    await expect.poll(async () => ((await replayTime()) ?? 0) - start).toBeGreaterThan(30_000);
+    await timeline.getByRole('button', { name: 'Pause replay' }).click();
+
+    await timeline.getByRole('button', { name: 'Live' }).click();
+    await expect(slider).toHaveAttribute('aria-valuetext', 'Live');
+    expect(await replayTime()).toBeNull();
+    await expect(trigger).toBeEnabled();
+  });
+
   test('falls back to the in-browser simulator', async ({ page }) => {
     await page.goto('/?source=local');
     await expect(page.getByTestId('connection')).toHaveText('Simulated in browser');
@@ -210,6 +237,14 @@ test.describe('Factory Twin dashboard', () => {
     await expect(list).toHaveAttribute('aria-hidden', 'true');
     await expect(page.getByTestId('details-panel')).toHaveAttribute('aria-hidden', 'false');
     expect(await page.evaluate(() => window.__factoryTwin!.getState().selectedId)).toBe(machineId);
+  });
+
+  test('timeline fits on a phone @mobile', async ({ page }) => {
+    await page.goto('/?source=local');
+    await waitForScene(page);
+    const timeline = page.getByTestId('timeline');
+    await expect(timeline).toBeInViewport({ ratio: 1 });
+    await expect(timeline.getByRole('button', { name: 'Live' })).toBeInViewport({ ratio: 1 });
   });
 
   test('works as a bottom sheet on a phone @mobile', async ({ page }) => {

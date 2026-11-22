@@ -309,7 +309,7 @@ button {
 .hint {
   position: absolute;
   left: 50%;
-  bottom: 14px;
+  top: 14px;
   transform: translateX(-50%);
   margin: 0;
   padding: 5px 12px;
@@ -319,6 +319,11 @@ button {
   font-size: 12px;
   pointer-events: none;
   white-space: nowrap;
+}
+
+.hint.is-replay {
+  color: var(--ink);
+  background: color-mix(in srgb, var(--accent) 35%, rgba(26, 26, 25, 0.85));
 }
 
 /* ---------- Details panel ---------- */

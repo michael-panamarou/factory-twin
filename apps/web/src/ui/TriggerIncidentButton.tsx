@@ -12,6 +12,7 @@ const COOLDOWN_MS = 1200;
 export function TriggerIncidentButton() {
     const inject = useTwinStore((s) => s.injectIncident);
     const mode = useTwinStore((s) => s.connection.mode);
+    const replaying = useTwinStore((s) => s.replay !== null);
     const [coolingDown, setCoolingDown] = useState(false);
     const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -22,7 +23,8 @@ export function TriggerIncidentButton() {
         [],
     );
 
-    const ready = !!inject && (mode === 'live' || mode === 'local');
+    // Incidents happen now, so they make no sense while looking at the past.
+    const ready = !!inject && (mode === 'live' || mode === 'local') && !replaying;
 
     const trigger = () => {
         const state = useTwinStore.getState();
@@ -40,7 +42,7 @@ export function TriggerIncidentButton() {
             onClick={trigger}
             disabled={!ready || coolingDown}
             aria-label="Trigger incident"
-            title="Start a simulated fault or jam on a random running machine"
+            title={replaying ? 'Go back to live to trigger an incident' : 'Start a simulated fault or jam on a random running machine'}
         >
             <span aria-hidden="true">⚡</span>
             <span className="trigger-incident__label">Trigger incident</span>

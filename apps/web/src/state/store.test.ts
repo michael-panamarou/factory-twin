@@ -17,6 +17,76 @@ const hello = (overrides: Partial<HelloMessage> = {}): HelloMessage => ({
   ...overrides,
 });
 
+
+describe('replay', () => {
+  /** Ten minutes of quiet data, then a fault on the press. */
+  const loadHistory = () => {
+    const sim = new FactorySimulator({ seed: 9, incidentRate: 0 });
+    const ticks = sim.backfill(T0 + 600 * TICK_MS, 600);
+    sim.inject('PRS-01', 'fault');
+    for (let i = 0; i < 20; i++) ticks.push(sim.tick(T0 + (600 + i) * TICK_MS));
+    for (const t of ticks) useTwinStore.getState().applyTick(t);
+    return ticks;
+  };
+
+  it('shows the hall as it was, and returns to live at the newest data', () => {
+    const ticks = loadHistory();
+    const end = ticks.at(-1)!.ts;
+    expect(useTwinStore.getState().shown['PRS-01']?.status).toBe('error');
+
+    useTwinStore.getState().seek(T0 + 60_000);
+    let state = useTwinStore.getState();
+    expect(state.replay?.time).toBe(T0 + 60_000);
+    expect(state.replay?.playing).toBe(false);
+    expect(state.shown['PRS-01']?.status).toBe('running');
+    expect(selectStatusCounts(state).running).toBe(MACHINES.length);
+
+    useTwinStore.getState().seek(end);
+    state = useTwinStore.getState();
+    expect(state.replay).toBeNull();
+    expect(state.shown).toBe(state.latest);
+  });
+
+  it('never goes before the oldest reading', () => {
+    loadHistory();
+    useTwinStore.getState().seek(0);
+    expect(useTwinStore.getState().replay?.time).toBe(T0);
+  });
+
+  it('plays at the chosen speed and stops at live', () => {
+    const ticks = loadHistory();
+    const store = useTwinStore.getState();
+    store.setReplayPlaying(true); // from live: starts at the beginning
+    expect(useTwinStore.getState().replay).toMatchObject({ time: T0, playing: true, speed: 10 });
+
+    store.setReplaySpeed(60);
+    store.advanceReplay(1000); // one second of wall-clock time at 60x
+    expect(useTwinStore.getState().replay?.time).toBe(T0 + 60_000);
+
+    store.advanceReplay(ticks.length * 1000);
+    expect(useTwinStore.getState().replay).toBeNull();
+  });
+
+  it('keeps the same shown object while the data shown does not change', () => {
+    loadHistory();
+    useTwinStore.getState().seek(T0 + 60_000);
+    const before = useTwinStore.getState().shown;
+    useTwinStore.getState().seek(T0 + 60_400);
+    expect(useTwinStore.getState().shown).toBe(before);
+  });
+
+  it('keeps showing the past while live data arrives, and a hello ends the replay', () => {
+    const ticks = loadHistory();
+    useTwinStore.getState().seek(T0 + 60_000);
+    const shown = useTwinStore.getState().shown;
+    useTwinStore.getState().applyTick({ ...ticks.at(-1)!, ts: ticks.at(-1)!.ts + 1000 });
+    expect(useTwinStore.getState().shown).toBe(shown);
+
+    useTwinStore.getState().applyHello(hello());
+    expect(useTwinStore.getState().replay).toBeNull();
+  });
+});
+
 describe('useTwinStore', () => {
   it('starts with every machine offline', () => {
     const counts = selectStatusCounts(useTwinStore.getState());

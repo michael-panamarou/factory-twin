@@ -4,6 +4,7 @@ import { WebSocketServer, type WebSocket } from 'ws';
 import {
   FactorySimulator,
   HISTORY_KEEP_SECONDS,
+  ALERTS_SENT_ON_HELLO,
   HISTORY_SEND_SECONDS,
   PROTOCOL_VERSION,
   TICK_MS,
@@ -39,7 +40,6 @@ export interface SimServer {
 const MAX_ALERTS_KEPT = 500;
 /** One injected incident per client per this many ms, so a stuck button cannot flood the hall. */
 const INJECT_COOLDOWN_MS = 1000;
-const ALERTS_SENT_ON_HELLO = 100;
 
 export async function startSimServer(options: SimServerOptions = {}): Promise<SimServer> {
   const {
@@ -98,6 +98,8 @@ export async function startSimServer(options: SimServerOptions = {}): Promise<Si
   const wss = new WebSocketServer({
     server: http,
     path: '/ws',
+    // The hello carries an hour of history (a few MB of JSON); compression cuts it to a fraction.
+    perMessageDeflate: { threshold: 4096 },
     verifyClient: ({ origin }: { origin: string }) => allowedOrigins.length === 0 || allowedOrigins.includes(origin),
   });
 

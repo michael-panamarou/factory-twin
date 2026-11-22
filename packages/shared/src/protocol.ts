@@ -7,7 +7,10 @@ export const TICK_MS = 1000;
 
 /** How much history the server keeps, and how much it sends to a new client. */
 export const HISTORY_KEEP_SECONDS = 60 * 60;
-export const HISTORY_SEND_SECONDS = 15 * 60;
+export const HISTORY_SEND_SECONDS = 60 * 60;
+
+/** Alerts sent to a new client, and kept by the browser. */
+export const ALERTS_SENT_ON_HELLO = 200;
 
 /** Sent once, right after a client connects. */
 export interface HelloMessage {

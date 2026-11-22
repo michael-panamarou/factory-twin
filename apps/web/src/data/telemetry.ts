@@ -1,4 +1,5 @@
 import {
+  ALERTS_SENT_ON_HELLO,
   FactorySimulator,
   HISTORY_SEND_SECONDS,
   PROTOCOL_VERSION,
@@ -23,8 +24,13 @@ export interface TelemetryOptions {
   url?: string;
   /** Force the in-browser simulator even when a URL is configured. */
   forceLocal?: boolean;
-  /** How long to wait for the first message before falling back to local simulation. */
+  /** How long to wait for the connection to open before falling back to local simulation. */
   connectTimeoutMs?: number;
+  /**
+   * Once open, how long to wait for the first message. It carries an hour of
+   * history, so give slow connections and busy machines time.
+   */
+  helloTimeoutMs?: number;
   /** Reconnect attempts after a live connection drops, before falling back. */
   maxReconnects?: number;
   /** Injected for tests. */
@@ -54,6 +60,7 @@ export function startTelemetry(sink: TelemetrySink, options: TelemetryOptions = 
     url,
     forceLocal = false,
     connectTimeoutMs = 4000,
+    helloTimeoutMs = 15_000,
     maxReconnects = 5,
     WebSocketImpl = globalThis.WebSocket,
     now = Date.now,
@@ -86,7 +93,7 @@ export function startTelemetry(sink: TelemetrySink, options: TelemetryOptions = 
       serverTime: end,
       machines: [...sim.machines],
       history,
-      alerts: ticks.flatMap((t) => t.alerts).slice(-100),
+      alerts: ticks.flatMap((t) => t.alerts).slice(-ALERTS_SENT_ON_HELLO),
     });
     sink.setConnection({ mode: 'local', reason });
     localTimer = setInterval(() => sink.applyTick(sim.tick(now())), TICK_MS);
@@ -106,9 +113,14 @@ export function startTelemetry(sink: TelemetrySink, options: TelemetryOptions = 
     socket = ws;
     let gotMessage = false;
 
-    connectTimer = setTimeout(() => {
-      if (!gotMessage) ws.close();
-    }, connectTimeoutMs);
+    const giveUpAfter = (ms: number) => {
+      if (connectTimer) clearTimeout(connectTimer);
+      connectTimer = setTimeout(() => {
+        if (!gotMessage) ws.close();
+      }, ms);
+    };
+    giveUpAfter(connectTimeoutMs);
+    ws.onopen = () => giveUpAfter(helloTimeoutMs);
 
     ws.onmessage = (event: MessageEvent) => {
       const msg = typeof event.data === 'string' ? parseServerMessage(event.data) : null;

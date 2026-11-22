@@ -7,6 +7,7 @@ import { sourceFromLocation, startTelemetry, type TelemetrySink } from './teleme
 class FakeSocket {
   static instances: FakeSocket[] = [];
   onmessage: ((e: MessageEvent) => void) | null = null;
+  onopen: (() => void) | null = null;
   onclose: (() => void) | null = null;
   closed = false;
   sent: string[] = [];
@@ -20,6 +21,9 @@ class FakeSocket {
     if (this.closed) return;
     this.closed = true;
     this.onclose?.();
+  }
+  open() {
+    this.onopen?.();
   }
   receive(data: unknown) {
     this.onmessage?.({ data: JSON.stringify(data) } as MessageEvent);
@@ -81,6 +85,24 @@ describe('startTelemetry', () => {
     const { sink, modes } = makeSink();
     startTelemetry(sink, { url: 'ws://test/ws', WebSocketImpl: ws, connectTimeoutMs: 1000 });
     vi.advanceTimersByTime(1000);
+    expect(modes.at(-1)).toBe('local');
+  });
+
+  it('waits longer for the first message once the connection is open', () => {
+    const { sink, modes } = makeSink();
+    startTelemetry(sink, { url: 'ws://test/ws', WebSocketImpl: ws, connectTimeoutMs: 1000, helloTimeoutMs: 10_000 });
+    FakeSocket.instances[0]!.open();
+    vi.advanceTimersByTime(5000);
+    expect(modes.at(-1)).toBe('connecting');
+    FakeSocket.instances[0]!.receive(hello());
+    expect(modes.at(-1)).toBe('live');
+  });
+
+  it('still gives up if the first message never comes', () => {
+    const { sink, modes } = makeSink();
+    startTelemetry(sink, { url: 'ws://test/ws', WebSocketImpl: ws, connectTimeoutMs: 1000, helloTimeoutMs: 10_000 });
+    FakeSocket.instances[0]!.open();
+    vi.advanceTimersByTime(10_000);
     expect(modes.at(-1)).toBe('local');
   });
 
