@@ -28,6 +28,14 @@ async function waitForCameraToSettle(page: Page) {
       .toBeLessThan(0.001);
 }
 
+const stats = (page: Page) => page.evaluate(() => window.__factoryTwinStats!());
+
+/** Waits until the renderer has reported a frame with the scene in it. */
+async function waitForStats(page: Page) {
+  await waitForScene(page);
+  await expect.poll(async () => (await stats(page)).calls).toBeGreaterThan(0);
+}
+
 const statusTotal = async (page: Page) => {
   let total = 0;
   for (const s of ['running', 'warning', 'error']) {
@@ -213,6 +221,80 @@ test.describe('Factory Twin dashboard', () => {
     await expect(trigger).toBeEnabled();
   });
 
+  // Frame rate means little on CI machines without a GPU, so the budget is on what drives it on real devices.
+  test('performance budget: high quality stays within 80 draw calls and 6 textures', async ({ page }) => {
+    await page.goto('/?source=local&quality=high');
+    await waitForStats(page);
+    const s = await stats(page);
+    expect(s.calls).toBeLessThanOrEqual(80);
+    expect(s.textures).toBeLessThanOrEqual(6);
+  });
+
+  test('performance budget: low quality drops shadows; the ?perf overlay switches tiers', async ({ page }) => {
+    await page.goto('/?source=local&quality=low&perf');
+    await waitForStats(page);
+    const hud = page.getByTestId('perf-hud');
+    await expect(hud).toBeVisible();
+    await expect.poll(async () => (await stats(page)).calls).toBeLessThanOrEqual(50);
+    expect((await stats(page)).dpr).toBe(1);
+
+    await hud.getByRole('button', { name: 'High' }).click();
+    await expect.poll(async () => (await stats(page)).calls).toBeGreaterThan(50); // the shadow pass is back
+  });
+
+  test('2D view: a floor plan of buttons, no 3D download', async ({ page }) => {
+    const sceneRequests: string[] = [];
+    page.on('request', (r) => {
+      if (/FactoryScene|\.glb$/.test(r.url())) sceneRequests.push(r.url());
+    });
+    await page.goto('/?source=local&view=2d');
+    const plan = page.getByRole('group', { name: 'Floor plan of the hall' });
+    await expect(plan.getByRole('button')).toHaveCount(MACHINE_COUNT);
+    await expect(page.locator('canvas')).toHaveCount(0);
+
+    // Keyboard works: Tab to a machine and press Enter.
+    const press = plan.getByRole('button', { name: /^Hydraulic press/ });
+    await press.focus();
+    await page.keyboard.press('Enter');
+    await expect(page.getByTestId('details-panel').getByRole('heading', { name: 'Hydraulic press' })).toBeVisible();
+    await expect(press).toHaveAttribute('aria-pressed', 'true');
+
+    // Incidents and the timeline work the same as in 3D.
+    await page.keyboard.press('Escape');
+    await page.getByRole('button', { name: 'Trigger incident' }).click();
+    await expect(plan.locator('.plan-machine.status-warning, .plan-machine.status-error')).not.toHaveCount(0, { timeout: 10_000 });
+
+    expect(sceneRequests).toEqual([]); // three.js and the models were never downloaded
+  });
+
+  test('without WebGL the app shows the floor plan and says why', async ({ page }) => {
+    await page.addInitScript(() => {
+      // @ts-expect-error simulate a browser without WebGL
+      delete window.WebGLRenderingContext;
+      // @ts-expect-error simulate a browser without WebGL
+      delete window.WebGL2RenderingContext;
+    });
+    await page.goto('/?source=local');
+    await expect(page.getByRole('status').filter({ hasText: 'cannot show the 3D view' })).toBeVisible();
+    await expect(page.getByTestId('floorplan')).toBeVisible();
+    await expect(page.getByRole('group', { name: 'View' }).getByRole('button', { name: '3D' })).toBeDisabled();
+  });
+
+  test('the view switch moves between 3D and 2D and is remembered', async ({ page }) => {
+    await page.goto('/?source=local');
+    await waitForScene(page);
+    const views = page.getByRole('group', { name: 'View' });
+    await views.getByRole('button', { name: '2D' }).click();
+    await expect(page.getByTestId('floorplan')).toBeVisible();
+    await expect(page.locator('canvas')).toHaveCount(0);
+
+    await page.reload();
+    await expect(page.getByTestId('floorplan')).toBeVisible();
+
+    await page.getByRole('group', { name: 'View' }).getByRole('button', { name: '3D' }).click();
+    await waitForScene(page);
+  });
+
   test('falls back to the in-browser simulator', async ({ page }) => {
     await page.goto('/?source=local');
     await expect(page.getByTestId('connection')).toHaveText('Simulated in browser');
@@ -245,6 +327,25 @@ test.describe('Factory Twin dashboard', () => {
     const timeline = page.getByTestId('timeline');
     await expect(timeline).toBeInViewport({ ratio: 1 });
     await expect(timeline.getByRole('button', { name: 'Live' })).toBeInViewport({ ratio: 1 });
+  });
+
+  test('phones start on low quality and render at 1x @mobile', async ({ page }) => {
+    await page.goto('/?source=local');
+    await waitForStats(page);
+    expect(await page.evaluate(() => window.__factoryTwin!.getState().quality.tier)).toBe('low');
+    expect(await page.evaluate(() => window.devicePixelRatio)).toBeGreaterThan(2); // the phone's screen is dense…
+    expect((await stats(page)).dpr).toBe(1); // …but the 3D view renders at 1x
+  });
+
+  test('the floor plan stands upright on a phone and fits the screen @mobile', async ({ page }) => {
+    await page.goto('/?source=local&view=2d');
+    const board = page.getByRole('group', { name: 'Floor plan of the hall' });
+    await expect(page.getByTestId('floorplan')).toHaveAttribute('data-orientation', 'portrait');
+    const box = (await board.boundingBox())!;
+    expect(box.height).toBeGreaterThan(box.width);
+    await expect(board).toBeInViewport({ ratio: 1 });
+    // Nothing in the top bar pushes the page wider than the screen.
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(page.viewportSize()!.width);
   });
 
   test('works as a bottom sheet on a phone @mobile', async ({ page }) => {

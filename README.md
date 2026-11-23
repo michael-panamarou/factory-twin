@@ -19,6 +19,7 @@ and clicking a machine opens a side panel with live charts and alerts.
 - **Live status colours**: machines in warning turn amber and pulse slowly, machines in error turn red and pulse fast, and running machines keep their own colours with a green floor frame. Each status also has its own shape (● ▲ ■), so it never depends on colour alone.
 - **Details panel**: temperature, throughput and vibration with their limits, plus temperature and throughput charts for the last 5 or 15 minutes, a table of the latest readings and the machine's alerts.
 - **Animation driven by the data**: robot arms and the conveyor move at a speed set by throughput and stop when a machine faults.
+- **2D floor plan**: a 3D/2D switch in the top bar shows a top-down plan with the same live colours, selection, panels, alerts and timeline. The app switches to it by itself, with a short notice, when the browser has no WebGL or the 3D view fails. The plan never downloads three.js (about 1.5 s to a usable view on a slow phone, against about 8 s for 3D), stands upright on phones, and every machine is a real button for keyboard and screen-reader users.
 - **Two data sources**: a Node.js WebSocket server, or the same simulator running in the browser. The static demo therefore works without a backend, and the app falls back to the browser simulator when the server can't be reached.
 - **Trigger incident button**: starts a fault or a jam on a random running machine and flies the camera to it, so visitors see a machine go amber or red straight away. It works with the server and with the browser simulator.
 - **Timeline replay**: a bar along the bottom lets you scrub back through the last hour, or play it at 1×, 10× or 60×. The machines, the status counts and the details panel all show the hall as it was, alerts are marked on the track (errors taller than warnings), and Live returns to the present.
@@ -46,7 +47,7 @@ Open http://localhost:5173. Other options:
 | `npm run typecheck` / `npm run lint` | TypeScript and ESLint |
 | `npm run dev` | Both at once, on Windows, macOS and Linux 
 
-URL parameters: `?source=local` forces the browser simulator, and `?ws=wss://host/ws` points one session at another server.
+URL parameters: `?source=local` forces the browser simulator, `?ws=wss://host/ws` points one session at another server, `?view=2d|3d` picks the view, `?quality=low|medium|high` fixes the graphics quality, and `?perf` shows a performance overlay (frame rate, draw calls, resolution, quality buttons).
 
 ## Architecture
 
@@ -114,8 +115,8 @@ To run the end-to-end tests against an existing Chromium instead of the one Play
 - [x] Camera flies to a machine when you click it
 - [x] Alert list with "jump to machine"
 - [x] Timeline that replays the last hour
-- [ ] Performance: steady 60 fps, lower quality on phones (DPR, shadows, instancing)
-- [ ] 2D fallback view
+- [x] Performance: steady 60 fps, lower quality on phones (DPR, shadows, instancing)
+- [x] 2D fallback view
 
 ## Credits
 

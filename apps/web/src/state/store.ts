@@ -12,6 +12,8 @@ import {
   type TickMessage,
 } from '@factory-twin/shared';
 import { DEFAULT_REPLAY_SPEED, historyStart, shownAt, type Replay, type ReplaySpeed } from './replay';
+import { initialViewFromBrowser, saveView, type ViewMode, type ViewState } from '../plan/view';
+import { detectTier, initialQuality, readDeviceHints, stepDown, stepUp, type QualityState, type QualityTier } from '../scene/quality';
 
 /** Where the data is coming from right now. */
 export type ConnectionMode = 'connecting' | 'live' | 'reconnecting' | 'local';
@@ -52,6 +54,10 @@ export interface TwinState {
   lastSeenAlertTs: number | null;
   /** Bumped by focusMachine(), so the camera flies again even to the machine already selected. */
   focusRequest: number;
+  /** Graphics quality tier, and whether the app may change it by itself. */
+  quality: QualityState;
+  /** 3D scene or 2D floor plan. */
+  view: ViewState;
 
   applyHello(msg: HelloMessage): void;
   applyTick(msg: TickMessage): void;
@@ -72,6 +78,15 @@ export interface TwinState {
   goLive(): void;
   /** Moves a playing replay forward by `ms` of wall-clock time (times the speed). */
   advanceReplay(ms: number): void;
+  /** Fixes the quality tier, or with 'auto' hands it back to the app. */
+  setQuality(choice: QualityTier | 'auto'): void;
+  /** Called when the frame rate drops or recovers; ignored unless quality is automatic. */
+  adaptQuality(direction: 'down' | 'up'): void;
+  /** Switches between 3D and the floor plan, and remembers the choice. 3D is refused without WebGL. */
+  setView(mode: ViewMode): void;
+  /** The 3D view failed: show the floor plan and tell the user why. */
+  fallBackTo2D(reason: string): void;
+  dismissViewNotice(): void;
 }
 
 const appendCapped = <T>(list: readonly T[], items: readonly T[], cap: number): T[] => {
@@ -118,6 +133,8 @@ export const useTwinStore = create<TwinState>()((set) => ({
   alertsOpen: false,
   lastSeenAlertTs: null,
   focusRequest: 0,
+  quality: initialQuality(),
+  view: initialViewFromBrowser(),
 
   applyHello: (msg) =>
       set((state) => {
@@ -187,6 +204,30 @@ export const useTwinStore = create<TwinState>()((set) => ({
         if (!r?.playing) return {};
         return replayAt(state, r.time + ms * r.speed);
       }),
+
+  setQuality: (choice) =>
+      set((state) =>
+          choice === 'auto'
+              ? { quality: { ...state.quality, auto: true, ceiling: detectTier(readDeviceHints()) } }
+              : { quality: { tier: choice, auto: false, ceiling: state.quality.ceiling } },
+      ),
+  adaptQuality: (direction) =>
+      set((state) => {
+        const q = state.quality;
+        if (!q.auto) return {};
+        const tier = direction === 'down' ? stepDown(q.tier) : stepUp(q.tier, q.ceiling);
+        return tier === q.tier ? {} : { quality: { ...q, tier } };
+      }),
+
+  setView: (mode) =>
+      set((state) => {
+        if (mode === '3d' && !state.view.webgl) return {};
+        saveView(mode);
+        return { view: { ...state.view, mode, notice: null } };
+      }),
+  // Not saved: a crash is no reason to stay in 2D next time.
+  fallBackTo2D: (reason) => set((state) => ({ view: { ...state.view, mode: '2d', notice: reason } })),
+  dismissViewNotice: () => set((state) => ({ view: { ...state.view, notice: null } })),
 }));
 
 /** Status of one machine as shown (live or replayed); components re-render only when it changes. */

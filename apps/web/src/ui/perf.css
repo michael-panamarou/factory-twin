@@ -1,0 +1,53 @@
+/* The ?perf overlay. */
+
+.perf-hud {
+    position: absolute;
+    right: 16px;
+    top: 14px;
+    display: grid;
+    gap: 8px;
+    padding: 10px 12px;
+    background: rgba(13, 13, 13, 0.88);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    z-index: 27;
+}
+
+.perf-hud dl {
+    display: grid;
+    grid-template-columns: repeat(5, auto);
+    gap: 4px 14px;
+    margin: 0;
+}
+
+.perf-hud dt {
+    color: var(--muted);
+    font-size: 11px;
+}
+
+.perf-hud dd {
+    margin: 0;
+    font-weight: 650;
+}
+
+.perf-hud__fps.is-good { color: var(--running); }
+.perf-hud__fps.is-ok { color: var(--warning); }
+.perf-hud__fps.is-poor { color: var(--error); }
+
+.perf-hud .segmented {
+    margin: 0;
+}
+
+@media (max-width: 760px) {
+    .perf-hud {
+        left: 10px;
+        right: 10px;
+        top: 10px;
+    }
+
+    .perf-hud dl {
+        grid-template-columns: repeat(3, auto);
+    }
+}

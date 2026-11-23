@@ -3,6 +3,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { STATUS_ICON } from '../theme';
 import { AlertsButton } from './AlertsButton';
 import { TriggerIncidentButton } from './TriggerIncidentButton';
+import { ViewSwitch } from './ViewSwitch';
 
 const CONNECTION_TEXT = {
     connecting: 'Connecting…',
@@ -37,6 +38,7 @@ export function TopBar() {
                 </li>
             </ul>
 
+            <ViewSwitch />
             <AlertsButton />
             <TriggerIncidentButton />
 

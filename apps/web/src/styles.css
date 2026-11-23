@@ -68,6 +68,8 @@ button {
 .app {
   display: grid;
   grid-template-rows: var(--topbar-h) 1fr;
+  /* minmax(0, …): nothing inside may make the page wider than the screen. */
+  grid-template-columns: minmax(0, 1fr);
   height: 100%;
 }
 
@@ -82,12 +84,38 @@ button {
   touch-action: none;
 }
 
+.scene-loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  grid-auto-flow: column;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.scene-loading__spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--surface-3);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 /* ---------- Top bar ---------- */
 
 .topbar {
   display: flex;
   align-items: center;
   gap: 24px;
+  min-width: 0;
   padding: 0 16px;
   background: var(--surface);
   border-bottom: 1px solid var(--hairline);
@@ -319,6 +347,27 @@ button {
   font-size: 12px;
   pointer-events: none;
   white-space: nowrap;
+}
+
+.view-notice {
+  position: absolute;
+  left: 50%;
+  top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: calc(100% - 32px);
+  padding: 7px 8px 7px 14px;
+  border: 1px solid color-mix(in srgb, var(--warning) 60%, transparent);
+  border-radius: 999px;
+  background: rgba(26, 26, 25, 0.94);
+  font-size: 12px;
+  transform: translateX(-50%);
+  z-index: 26;
+}
+
+.view-switch {
+  margin: 0;
 }
 
 .hint.is-replay {
@@ -606,6 +655,15 @@ button {
     display: none;
   }
 
+  .topbar > * {
+    flex-shrink: 0;
+  }
+
+  .brand {
+    flex-shrink: 1;
+    min-width: 0;
+  }
+
   .status-summary {
     gap: 10px;
     font-size: 13px;
@@ -673,10 +731,38 @@ button {
   }
 }
 
+/* Narrow phones: the logo stands in for the title so every control fits. */
+@media (max-width: 480px) {
+  .brand h1 {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+
+  .topbar {
+    gap: 8px;
+  }
+
+  .status-summary {
+    gap: 7px;
+  }
+
+  .view-switch button {
+    padding: 4px 8px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .scene-loading__spinner {
+    animation-duration: 2.4s;
+  }
+
   .panel {
     transition: none;
   }
+
   .connection__dot {
     animation: none !important;
   }
